@@ -3,6 +3,7 @@ from GraphPy.GrafoErdosRenyi import grafoErdosRenyi
 from GraphPy.GrafoGilbert import grafoGilbert
 from GraphPy.GrafoGeografico import grafoGeografico
 from GraphPy.GrafoBarabasiAlbert import grafoBarabasiAlbert
+from GraphPy.GrafoDorogovtsevMendez import grafoDorogovtsevMendes
 
 # grafo = grafoMalla(3,3)
 
@@ -52,14 +53,18 @@ from GraphPy.GrafoBarabasiAlbert import grafoBarabasiAlbert
 
 # grafo.Guardar()
 
-grafo = grafoBarabasiAlbert(15, 4)
+# grafo = grafoBarabasiAlbert(15, 4)
+
+# grafo.MostrarGrafo()
+
+# grafo.Guardar()
+
+# grafo = grafoBarabasiAlbert(15, 4, dirigido = True)
+
+# grafo.MostrarGrafo()
+
+# grafo.Guardar()
+
+grafo = grafoDorogovtsevMendes(15)
 
 grafo.MostrarGrafo()
-
-grafo.Guardar()
-
-grafo = grafoBarabasiAlbert(15, 4, dirigido = True)
-
-grafo.MostrarGrafo()
-
-grafo.Guardar()

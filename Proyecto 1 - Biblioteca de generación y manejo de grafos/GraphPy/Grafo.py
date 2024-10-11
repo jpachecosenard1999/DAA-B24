@@ -7,6 +7,7 @@ class Grafo:
     def __init__(self, nombre, dir = False, geo = False):
         self.nombre = nombre
         self.nodos = []
+        self.aristas = []
         self.dir = dir
         self.geo = geo
 
@@ -39,10 +40,10 @@ class Grafo:
                     return True
         return False
                 
-    def AgregarArco(self, nodoOrigen, nodoDestino, peso = 0):
-        if((isinstance(nodoOrigen, Nodo) and isinstance(nodoDestino, Nodo)) and self.BuscarNodo(nodoOrigen) and self.BuscarNodo(nodoDestino)):
-            arco = Arista(nodoOrigen, nodoDestino, peso)
-            nodoOrigen.listaAdyacencia.append(arco)
+    def AgregarArco(self, arco):
+        if(isinstance(arco, Arista) and (isinstance(arco.nodoOrigen, Nodo) and isinstance(arco.nodoDestino, Nodo)) and self.BuscarNodo(arco.nodoOrigen) and self.BuscarNodo(arco.nodoDestino)):
+            arco.nodoOrigen.listaAdyacencia.append(arco)
+            self.aristas.append(arco)
             return True
         return False
     
@@ -73,22 +74,34 @@ class Grafo:
         return False
     
     def Guardar(self):
-        dot = graphviz.Graph(self.nombre)
-        if(self.dir == True):
-            dot = graphviz.Digraph(self.nombre)
-        
-        for nodo in self.nodos:
-            if(isinstance(nodo, Nodo)):
-                dot.node(nodo.nombre, nodo.nombre)
-                for adyacentes in nodo.listaAdyacencia:
-                    if(isinstance(adyacentes, Arista) and isinstance(adyacentes.nodoOrigen, Nodo) and isinstance(adyacentes.nodoDestino, Nodo)):
-                        dot.edge(adyacentes.nodoOrigen.nombre, adyacentes.nodoDestino.nombre)
-        
-        #dot.save(str(self.nombre) + ".gv")
-        
-        dot.format = "png"
-        
-        dot.render(directory='Grafos').replace('\\', '/')
+        """
+        Exporta el grafo en formato GraphViz (.gv) usando el nombre del grafo como nombre del archivo.
+        """
+        # Usamos el nombre del grafo con extensión ".gv"
+        filename = self.nombre + ".gv"
+    
+        with open(filename, 'w') as file:
+            if self.dirigido:
+                file.write("digraph G {\n")
+                conector = " -> "
+            else:
+                file.write("graph G {\n")
+                conector = " -- "
+
+            for nodo in self.nodos:
+                if isinstance(nodo, Nodo):
+                    for adyacentes in nodo.listaAdyacencia:
+                        if isinstance(adyacentes, Arista):
+                            nodoOrigen = adyacentes.nodoOrigen
+                            nodoDestino = adyacentes.nodoDestino
+                            if isinstance(nodoOrigen, Nodo) and isinstance(nodoDestino, Nodo):
+                                # Escribir la arista en formato GraphViz
+                                file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}";\n')
+
+            file.write("}\n")
+
+        print(f"Grafo exportado a {filename} en formato GraphViz.")
+
         
     def MostrarGrafo(self):
         for nodo in self.nodos:

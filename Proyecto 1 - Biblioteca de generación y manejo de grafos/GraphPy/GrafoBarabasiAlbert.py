@@ -38,14 +38,13 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
     
     tam = d # Tamaño actual de la lista de nodos    
     while i < n:
+        baraja = grafo.nodos.copy()
+        random.shuffle(baraja)
         nodo = Nodo("N-" + str(i))
         grafo.AgregarNodo(nodo)
-        tam = tam + 1
-        j = 0
-        while j < d:
-            numero_aleatorio = random.randrange(0, tam)
-            nodoDestino = grafo.nodos[numero_aleatorio]
-            if(isinstance(nodoDestino, Nodo) and numero_aleatorio != i and nodo != nodoDestino):
+        for b in baraja:
+            nodoDestino = b
+            if(isinstance(nodoDestino, Nodo) and nodo != nodoDestino):
                 if(nodoDestino.deg() < d):
                     #print("Si")
                     volada = random.random()
@@ -54,15 +53,11 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
                     if(volada < p):
                         arco1 = Arista(nodo, nodoDestino)
                         arco2 = Arista(nodoDestino, nodo)
-                        print(grafo.ExisteArco(arco1) == False)
-                        print()
                         if(dirigido == True):
                             nodo.listaAdyacencia.append(arco1)
-                            j = j + 1
                         elif(dirigido == False):
                             nodo.listaAdyacencia.append(arco1)
-                            nodo.listaAdyacencia.append(arco2)
-                            j = j + 1
+                            nodoDestino.listaAdyacencia.append(arco2)
         i = i + 1
     
             
