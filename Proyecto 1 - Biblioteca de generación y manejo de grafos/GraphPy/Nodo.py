@@ -21,6 +21,9 @@ class Nodo:
             return (self.nombre == other.nombre) or (self.nombre == other.nombre)
         return False
     
-    def deg(self):
+    def deg(self):     
+        '''
+        Devuelve el grado del nodo
+        '''
         return len(self.listaAdyacencia)
 
