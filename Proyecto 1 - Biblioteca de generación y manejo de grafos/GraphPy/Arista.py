@@ -1,6 +1,12 @@
 class Arista:
 
     def __init__(self, nodoOrigen, nodoDestino, peso = 0):
+        '''
+        Clase Arista
+        :param nodoOrigen: nodo origen de la arista
+        :param nodoDestino: nodo destino de la arista
+        :param peso: peso de la arista
+        '''
         self.nodoOrigen = nodoOrigen
         self.nodoDestino = nodoDestino
         self.peso = peso

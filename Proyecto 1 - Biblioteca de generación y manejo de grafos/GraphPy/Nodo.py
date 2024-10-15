@@ -3,6 +3,10 @@ import random
 class Nodo:
 
     def __init__(self, nombre, geo = False):
+        '''
+        :param nombre: nombre del nodo
+        :param geo: si es verdadero inicializa las cordenadas X y Y
+        '''
         self.nombre = nombre
         self.listaAdyacencia = []
         self.X = 0

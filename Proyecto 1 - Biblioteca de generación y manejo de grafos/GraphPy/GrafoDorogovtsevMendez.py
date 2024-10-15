@@ -12,7 +12,7 @@ def grafoDorogovtsevMendes(n, dirigido=False):
     """
     dirstr = "NoDir"
     if(dirigido == True): dirstr = "Dir"
-    grafo = Grafo("Doro " + str(n) + "-nodos " + dirstr, dir = dirigido, geo = True)
+    grafo = Grafo("Doro " + str(n) + "-nodos " + dirstr, dir = dirigido, geo = False)
     
     for i in range(n):
         nodo = Nodo("N-" + str(i))

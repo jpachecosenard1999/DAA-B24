@@ -13,7 +13,7 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
     """
     dirstr = "NoDir"
     if(dirigido == True): dirstr = "Dir"
-    grafo = Grafo("Bara " + str(n) + "-nodos " + dirstr, dir = dirigido, geo = True)
+    grafo = Grafo("Bara " + str(n) + "-nodos " + dirstr, dir = dirigido, geo = False)
     
     for i in range(d):
         nodo = Nodo("N-" + str(i))
@@ -35,8 +35,6 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
                     nodoDestino.listaAdyacencia.append(arco2)
                     
     i = d - 1 # Ya están creados los d primeros nodos (0, 1, 2, ..., d-1)
-    
-    tam = d # Tamaño actual de la lista de nodos    
     while i < n:
         baraja = grafo.nodos.copy()
         random.shuffle(baraja)
@@ -46,7 +44,6 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
             nodoDestino = b
             if(isinstance(nodoDestino, Nodo) and nodo != nodoDestino):
                 if(nodoDestino.deg() < d):
-                    #print("Si")
                     volada = random.random()
                     v = nodoDestino.deg()
                     p = 1 - v/d
