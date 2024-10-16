@@ -5,29 +5,29 @@ from GraphPy.GrafoGeografico import grafoGeografico
 from GraphPy.GrafoBarabasiAlbert import grafoBarabasiAlbert
 from GraphPy.GrafoDorogovtsevMendez import grafoDorogovtsevMendes
 
-# grafo = grafoMalla(50, 10)
+grafo = grafoMalla(50, 10)
 
-# grafo.MostrarGrafo()
+grafo.MostrarGrafo()
 
-# grafo.Guardar()
+grafo.Guardar()
 
-# grafo = grafoMalla(50, 10, dirigido = True)
+grafo = grafoMalla(50, 10, dirigido = True)
 
-# grafo.MostrarGrafo()
+grafo.MostrarGrafo()
 
-# grafo.Guardar()
+grafo.Guardar()
 
-# grafo = grafoErdosRenyi(500,1000,dirigido = True)
+grafo = grafoErdosRenyi(500,1000,dirigido = True)
 
-# grafo.MostrarGrafo()
+grafo.MostrarGrafo()
 
-# grafo.Guardar()
+grafo.Guardar()
 
-# grafo = grafoErdosRenyi(500,1000)
+grafo = grafoErdosRenyi(500,1000)
 
-# grafo.MostrarGrafo()
+grafo.MostrarGrafo()
 
-# grafo.Guardar()
+grafo.Guardar()
 
 grafo = grafoGilbert(500, .4)
 
@@ -41,13 +41,13 @@ grafo.MostrarGrafo()
 
 grafo.Guardar()
 
-grafo = grafoGeografico(500, .4)
+grafo = grafoGeografico(500, .1)
 
 grafo.MostrarGrafo()
 
 grafo.Guardar()
 
-grafo = grafoGeografico(500, .4, dirigido = True)
+grafo = grafoGeografico(500, .1, dirigido = True)
 
 grafo.MostrarGrafo()
 

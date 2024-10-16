@@ -121,7 +121,7 @@ class Grafo:
         """
         # Usamos el nombre del grafo con extensión ".gv"
         filename = self.nombre + ".gv"
-    
+
         with open(filename, 'w') as file:
             if self.dir:
                 file.write("digraph G {\n")
@@ -129,6 +129,14 @@ class Grafo:
             else:
                 file.write("graph G {\n")
                 conector = " -- "
+                
+            # Escribir todos los nodos, incluso los que no están conectados
+            for nodo in self.nodos:
+                if isinstance(nodo, Nodo):
+                    file.write(f'    "{nodo.nombre}";\n')  # Escribimos cada nodo por separado
+
+            # Conjunto para evitar duplicados en grafos no dirigidos
+            aristas_exportadas = set()
 
             for nodo in self.nodos:
                 if isinstance(nodo, Nodo):
@@ -137,12 +145,20 @@ class Grafo:
                             nodoOrigen = adyacentes.nodoOrigen
                             nodoDestino = adyacentes.nodoDestino
                             if isinstance(nodoOrigen, Nodo) and isinstance(nodoDestino, Nodo):
+                                # Si es un grafo no dirigido, verificamos si ya se exportó la arista inversa
+                                if not self.dir:
+                                    if (nodoDestino.nombre, nodoOrigen.nombre) in aristas_exportadas:
+                                        continue  # Ya se exportó el inverso, lo omitimos
+                                    # Añadimos la arista actual al conjunto
+                                    aristas_exportadas.add((nodoOrigen.nombre, nodoDestino.nombre))
+                            
                                 # Escribir la arista en formato GraphViz
                                 file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}";\n')
 
             file.write("}\n")
 
         print(f"Grafo exportado a {filename} en formato GraphViz.")
+
 
         
     def MostrarGrafo(self):

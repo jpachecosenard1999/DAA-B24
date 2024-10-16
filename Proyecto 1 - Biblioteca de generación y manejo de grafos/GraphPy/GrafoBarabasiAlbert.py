@@ -50,10 +50,10 @@ def grafoBarabasiAlbert(n, d, dirigido=False):
                     if(volada < p):
                         arco1 = Arista(nodo, nodoDestino)
                         arco2 = Arista(nodoDestino, nodo)
-                        if(dirigido == True):
-                            nodo.listaAdyacencia.append(arco1)
-                        elif(dirigido == False):
-                            nodo.listaAdyacencia.append(arco1)
+                        if(dirigido == True and grafo.ExisteArco(arco1) == False):
+                            nodoOrigen.listaAdyacencia.append(arco1)
+                        elif(dirigido == False and grafo.ExisteArco(arco1) == False and grafo.ExisteArco(arco2) == False):
+                            nodoOrigen.listaAdyacencia.append(arco1)
                             nodoDestino.listaAdyacencia.append(arco2)
         i = i + 1
     
