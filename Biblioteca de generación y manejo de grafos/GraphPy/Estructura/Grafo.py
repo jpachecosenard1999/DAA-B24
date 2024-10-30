@@ -285,7 +285,7 @@ class Grafo:
         :param s: nodo a tomar como raíz
         :return árbol
         '''
-        dps = Grafo("DPS_R - " + self.nombre, self.dir)
+        dps = Grafo("DFS_R - " + self.nombre, self.dir)
         nodos_arbol = set()
         aristas_arbol = set()
         visited = set()
@@ -358,7 +358,7 @@ class Grafo:
         :param s: nodo a tomar como raíz
         :return árbol
         '''
-        dps = Grafo("DPS_I - " + self.nombre, self.dir)
+        dps = Grafo("DFS_I - " + self.nombre, self.dir)
         nodos_arbol = set()
         aristas_arbol = set()
         visited = set()
