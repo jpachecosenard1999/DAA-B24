@@ -1,6 +1,9 @@
 from GraphPy.Estructura.Arista import Arista
 from GraphPy.Estructura.Nodo import Nodo
 import graphviz
+import random
+import heapq
+import re
 
 class Grafo:
 
@@ -30,7 +33,7 @@ class Grafo:
             self.nodos.append(nuevoNodo)
             
         
-    def AgregarNodo(self, nuevoNodo):
+    def AgregarNodo(self, nuevoNodo: Nodo):
         '''
         Agrega un nuevo nodo al grafo dando por párametro el nodo a añadir.
         :param nuevoNodo: nodo a añadir al grafo
@@ -170,6 +173,62 @@ class Grafo:
             file.write("}\n")
 
         print(f"Grafo exportado a {filename} en formato GraphViz.")
+                  
+
+    def GuardarConEtiquetasYColor(self, camino_resaltado = set(), last = ""):
+        """
+        Exporta el grafo en formato GraphViz (.gv), resaltando nodos específicos y coloreando un camino dado.
+        """
+        # Nombre del archivo .gv
+        filename = self.nombre + ".gv"
+
+        # Patrón de regex para detectar nodos que deben tener etiqueta
+        #patron_nodo_resaltado = re.compile(r'N-\d+\(\d+\.\d+\)')
+        #patron_nodo_inicio = re.compile(r"N-0(?:,0)?")  # Detecta "N-0" o "N-0,0"
+
+        with open(filename, 'w') as file:
+            if self.dir:
+                file.write("digraph G {\n")
+                conector = " -> "
+            else:
+                file.write("graph G {\n")
+                conector = " -- "
+
+            # Escribir todos los nodos, aplicando etiquetas a los resaltados
+            for nodo in self.nodos:
+                if isinstance(nodo, Nodo): 
+                    if nodo.nombre == last:
+                        # Resalta nodos que cumplen con el patrón
+                        file.write(f'    "{nodo.nombre}" [label="{nodo.nombre}",color=red, fontcolor=red, style=filled, fillcolor=red];\n')
+                    else:
+                        # Nodo sin resaltado
+                        file.write(f'    "{nodo.nombre}";\n')
+
+            # Conjunto para evitar duplicados en grafos no dirigidos
+            aristas_exportadas = set()
+
+            for nodo in self.nodos:
+                if isinstance(nodo, Nodo):
+                    for adyacentes in nodo.listaAdyacencia:
+                        if isinstance(adyacentes, Arista):
+                            nodoOrigen = adyacentes.nodoOrigen
+                            nodoDestino = adyacentes.nodoDestino
+                            if isinstance(nodoOrigen, Nodo) and isinstance(nodoDestino, Nodo):
+                                # Evitar duplicados si el grafo es no dirigido
+                                if not self.dir:
+                                    if (nodoDestino.nombre, nodoOrigen.nombre) in aristas_exportadas:
+                                        continue
+                                    aristas_exportadas.add((nodoOrigen.nombre, nodoDestino.nombre))
+
+                                # Escribir la arista en el archivo, con o sin estilo
+                                if nodo.nombre in camino_resaltado:
+                                    file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}" [color=red, penwidth=2, weight=2];\n')
+                                else:
+                                    file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}" [color=black, penwidth=2, weight=2];\n')
+
+            file.write("}\n")
+
+        print(f"Grafo exportado a {filename} con etiquetas y camino resaltado en formato GraphViz.")
 
     def Cargar(self, filename: str):
         '''
@@ -221,7 +280,13 @@ class Grafo:
         archivo.close()
         self.nodos = nodos_cargados
                     
-                    
+    def AsignarPeso(self):
+        '''Asigna Peso a las Aristas'''
+        for nodo in self.nodos:
+            if(isinstance(nodo, Nodo)):
+                for adyacentes in nodo.listaAdyacencia:
+                    if(isinstance(adyacentes, Arista) and isinstance(adyacentes.nodoOrigen, Nodo) and isinstance(adyacentes.nodoDestino, Nodo)):
+                        adyacentes.peso = random.random() * 100 # Obtengo un valor random y lo multiplico por 100 para escalar       
         
         
     def MostrarGrafo(self):
@@ -382,3 +447,74 @@ class Grafo:
         dps.aristas = list(aristas_arbol)
         
         return dps
+    
+    def Dijkstra(self, s):
+        '''
+        Realiza el algoritmo del camino más corto en el grafo a partir del nodo dado y devuelve el árbol generado
+        :param s: nodo a tomar como raíz
+        :return árbol
+        '''
+        arbol = Grafo("Dijkstra - " + self.nombre, self.dir)
+        
+        distancias = {}
+        predecesor = {}
+        
+        for nodo in self.nodos:
+            distancias[nodo] = 99999999999 # Asigno un peso gigantesco
+        
+        distancias[s] = 0 # Asigno valor cero a la distancia del nodo inicial
+        
+        nodos_visitados = set()
+        
+        # Cola de prioridad
+        pq = []
+        heapq.heappush(pq, (0, s))  # (distancia, nodo)
+        
+        while(pq):
+            # Selecciono el nodo con menor distancia
+            dist_actual, nodo_actual = heapq.heappop(pq)
+
+            if distancias[nodo_actual] == 99999999999: break # Rompo el ciclo porque el resto de nodos no son alcanzables
+            
+            if(isinstance(nodo_actual, Nodo)):
+                for adyacentes in nodo_actual.listaAdyacencia:
+                    if(isinstance(adyacentes, Arista)):
+                        dist_tentativa = dist_actual + adyacentes.peso
+                        if(dist_tentativa < distancias[adyacentes.nodoDestino]):
+                            distancias[adyacentes.nodoDestino] = dist_tentativa
+                            predecesor[adyacentes.nodoDestino] = nodo_actual
+                            heapq.heappush(pq, (dist_tentativa, adyacentes.nodoDestino))
+
+            nodos_visitados.add(nodo_actual)
+            
+            
+        #arbol.AgregarNodo(Nodo(s.nombre))
+        
+        nodos_arbol = set()
+        aristas_arbol = set()
+        
+        ultima_nodo = list(distancias.keys())[-1]
+        
+        nodos_arbol.add(Nodo(s.nombre))
+        
+        # Creación del árbol
+        
+        for predec in predecesor.keys():
+            nodoO = Nodo(predecesor[predec].nombre)
+            nodoD = Nodo(predec.nombre + "(" + str(distancias[predec]) + ")")
+            arcoA = Arista(nodoO,nodoD)
+            arcoB = Arista(nodoD,nodoO)
+            arcoA.nodoOrigen.listaAdyacencia.append(arcoA)
+            arcoB.nodoOrigen.listaAdyacencia.append(arcoB)
+            if(nodoO.nombre != s.nombre):
+                nodoO.nombre = nodoO.nombre + "(" + str(distancias[predecesor[predec]]) + ")"
+            nodos_arbol.add(nodoD)
+            aristas_arbol.add(arcoA)
+        
+        arbol.nodos = list(nodos_arbol)
+        arbol.aristas = list(aristas_arbol)
+        
+        
+        arbol.GuardarConEtiquetasYColor(last = s.nombre)
+        
+        return arbol

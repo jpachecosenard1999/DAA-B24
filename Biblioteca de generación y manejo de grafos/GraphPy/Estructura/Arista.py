@@ -1,6 +1,6 @@
 class Arista:
 
-    def __init__(self, nodoOrigen, nodoDestino, peso = 0):
+    def __init__(self, nodoOrigen, nodoDestino, peso = 0.0):
         '''
         Clase Arista
         :param nodoOrigen: nodo origen de la arista
