@@ -1,4 +1,5 @@
 from GraphPy.Estructura.Arista import Arista
+from GraphPy.Estructura.UnionFind import UnionFind
 from GraphPy.Estructura.Nodo import Nodo
 import graphviz
 import random
@@ -168,7 +169,11 @@ class Grafo:
                                     aristas_exportadas.add((nodoOrigen.nombre, nodoDestino.nombre))
                             
                                 # Escribir la arista en formato GraphViz
-                                file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}";\n')
+                                if(adyacentes.peso == 0):
+                                    file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}";\n')
+                                else:
+                                    label = '[label=' + str(adyacentes.peso) + ']'
+                                    file.write(f'    "{nodoOrigen.nombre}"{conector}"{nodoDestino.nombre}"{label};\n')
 
             file.write("}\n")
 
@@ -282,11 +287,29 @@ class Grafo:
                     
     def AsignarPeso(self):
         '''Asigna Peso a las Aristas'''
-        for nodo in self.nodos:
-            if(isinstance(nodo, Nodo)):
-                for adyacentes in nodo.listaAdyacencia:
-                    if(isinstance(adyacentes, Arista) and isinstance(adyacentes.nodoOrigen, Nodo) and isinstance(adyacentes.nodoDestino, Nodo)):
-                        adyacentes.peso = random.random() * 100 # Obtengo un valor random y lo multiplico por 100 para escalar       
+        if(self.dir == True):
+            for nodo in self.nodos:
+                if(isinstance(nodo, Nodo)):
+                    for adyacentes in nodo.listaAdyacencia:
+                        if(isinstance(adyacentes, Arista) and isinstance(adyacentes.nodoOrigen, Nodo) and isinstance(adyacentes.nodoDestino, Nodo)):
+                            adyacentes.peso = random.random() * 100 # Obtengo un valor random y lo multiplico por 100 para escalar
+        else:
+            for nodo in self.nodos:
+                if isinstance(nodo, Nodo):
+                    for adyacente in nodo.listaAdyacencia:
+                        if(isinstance(adyacente, Arista) and isinstance(adyacente.nodoOrigen, Nodo) and isinstance(adyacente.nodoDestino, Nodo)):
+                            # Si la arista no tiene peso, asignamos uno nuevo
+                            if adyacente.peso == 0:
+                                nuevo_peso = random.random() * 100
+                                adyacente.peso = nuevo_peso # Obtengo un valor random y lo multiplico por 100 para escalar
+                        
+                                # Encontrar y asignar el mismo peso a la arista inversa
+                                nodo_destino = adyacente.nodoDestino
+                                for arista_inversa in nodo_destino.listaAdyacencia:
+                                    if(isinstance(arista_inversa, Arista) and
+                                        arista_inversa.nodoDestino == nodo):
+                                        arista_inversa.peso = nuevo_peso
+                                        break       
         
         
     def MostrarGrafo(self):
@@ -517,4 +540,177 @@ class Grafo:
         
         arbol.GuardarConEtiquetasYColor(last = s.nombre)
         
+        return arbol
+    
+    def KruskalD(self):
+        '''
+        Calcula el árbol de expansión mínima mediante el Algoritmo de Kruskal (Directo)
+        :return árbol
+        '''
+        arbol = Grafo("Kruskal-D " + self.nombre, self.dir)
+    
+        # Ordenar las aristas ascendentemente por peso
+        sortedAristas = sorted(self.aristas, key=lambda arista: arista.peso)
+    
+        # Inicializar Clase Auxiliar para manejar conjuntos
+        uf = UnionFind(self.nodos)
+    
+        valueMST = 0  # Valor del árbol de expansión mínima
+
+        for arista in sortedAristas:
+            nodoOrigen = arista.nodoOrigen
+            nodoDestino = arista.nodoDestino
+
+            if(uf.find(nodoOrigen) != uf.find(nodoDestino)):
+                uf.union(nodoOrigen, nodoDestino)
+
+                # Añadimos la arista al árbol
+                nodoA = Nodo(nodoOrigen.nombre)
+                nodoB = Nodo(nodoDestino.nombre)
+                arcoA = Arista(nodoA, nodoB, arista.peso)
+                arcoB = Arista(nodoB, nodoA, arista.peso)
+
+                nodoA.listaAdyacencia.append(arcoA)
+                nodoB.listaAdyacencia.append(arcoB)
+                arbol.nodos.append(nodoA)
+                arbol.nodos.append(nodoB)
+                arbol.aristas.append(arcoA)
+
+                # Actualizar el valor del árbol de expansión mínima
+                valueMST += arista.peso
+
+        valueMST = round(valueMST, 3)
+        print("Valor del árbol de expansión mínima: " + str(valueMST))
+        arbol.Guardar()
+        return arbol
+    
+    def CrearArbol(self, arista_eliminar: Arista): 
+        '''
+        Crea un árbol sin la arista pasada por parámetro
+        :param arista_eliminar: arista a excluir del árbol
+        :return: arbol (subgrafo sin la arista eliminada)
+        '''
+        arbol = Grafo("Kruskal-I " + self.nombre, self.dir)
+    
+        # Diccionario con nodos del árbol
+        nodo_map = {nodo.nombre: Nodo(nodo.nombre) for nodo in self.nodos}
+        arbol.nodos = list(nodo_map.values())
+    
+        for arista in self.aristas:
+            if(arista != arista_eliminar):
+                nodo_origen = nodo_map[arista.nodoOrigen.nombre]
+                nodo_destino = nodo_map[arista.nodoDestino.nombre]
+            
+                arcoA = Arista(nodo_origen, nodo_destino, arista.peso)
+                arcoB = Arista(nodo_destino, nodo_origen, arista.peso)
+            
+                nodo_origen.listaAdyacencia.append(arcoA)
+                nodo_destino.listaAdyacencia.append(arcoB)
+            
+                arbol.aristas.append(arcoA)
+    
+        return arbol
+
+    
+    def KruskalI(self):
+        '''
+        Calcula el árbol de expansión mínima mediante el Algoritmo de Kruskal (Inverso)
+        :return árbol
+        '''
+        arbol = Grafo("Kruskal-I " + self.nombre, self.dir)
+        arbol.nodos = self.nodos
+        arbol.aristas = self.aristas
+    
+        # Ordenar las aristas descendentemente por peso
+        sortedAristas = sorted(self.aristas, key=lambda arista: arista.peso, reverse=True)
+    
+        valueMST = 0 # Valor del árbol de expansión mínima
+        
+        # El valor inicial es la suma de todos los pesos
+        for arista in self.aristas:
+            valueMST += arista.peso
+
+        for arista in sortedAristas:
+            # Crear un arbol sin la arista actual
+            arbol2 = arbol.CrearArbol(arista)
+        
+            # Ejecutar BFS desde el nodo inicial
+            nodo_inicio = arbol2.nodos[0]  
+            bfs_result = arbol2.BFS(nodo_inicio)
+        
+            # Si la cantidad de nodos visitados es igual a la cantidad de nodos totales, el grafo sigue siendo conexo
+            if(len(bfs_result.nodos) == len(arbol2.nodos)):
+                arbol = arbol2
+                valueMST -= arista.peso
+            else: continue  # Saltamos esta arista porque desconecta el árbol
+
+        valueMST = round(valueMST, 3)
+        print("Valor del árbol de expansión mínima: " + str(valueMST))
+        arbol.nombre = "Kruskal-I " + self.nombre
+        arbol.Guardar()
+        return arbol
+    
+    
+
+    def Prim(self, s: Nodo):
+        """
+        Calcula el árbol de expansión mínima mediante el Algoritmo de Prim.
+        :param s: Nodo inicial
+        :return: Grafo con el MST
+        """
+        # Inicializar el árbol de expansión mínima (MST)
+        arbol = Grafo("Prim - " + self.nombre, self.dir)
+
+        # Inicializar distancias a infinito para todos los nodos
+        distancias = {nodo: float('inf') for nodo in self.nodos}
+        distancias[s] = 0
+
+        valueMST = 0
+        
+        visited = set()
+        visitedAristas = set()
+        
+        # Cola de prioridad para manejar las aristas
+        pq = []
+        heapq.heappush(pq, (0, s, None))
+        
+        while pq:
+            peso, nodo, previo = heapq.heappop(pq)
+            
+            if(nodo in visited): continue # Si ya fue visitado saltar a la siguiente iteración
+            
+            # Si no es el primer nodo, agregar la arista correspondiente al MST
+            if previo is not None:
+                # valueMST += peso  # Sumar el peso de la arista al MST
+                nodoOrigen = Nodo(previo.nombre)
+                nodoDestino = Nodo(nodo.nombre)
+                arcoA = Arista(nodoOrigen, nodoDestino, peso)
+                arcoB = Arista(nodoDestino, nodoOrigen, peso)
+                nodoOrigen.listaAdyacencia.append(arcoA)
+                nodoDestino.listaAdyacencia.append(arcoB)
+                arbol.nodos.append(nodoOrigen)
+                arbol.aristas.append(arcoA)
+                # print(f"Arista seleccionada: {previo} --({peso})--> {nodo}")
+                
+            # Añadir el peso al MST solo si es la distancia mínima
+            if peso == distancias[nodo]:
+                valueMST += peso # Sumar el peso de la arista al MST
+            
+            visited.add(nodo) # Marco el nodo como visitado
+            
+            adyacentes = nodo.listaAdyacencia
+            
+            for ady in adyacentes: # Añado las aristas adyacentes
+                if(isinstance(ady, Arista)):
+                    ady_invertido = Arista(ady.nodoDestino, ady.nodoOrigen, ady.peso)
+                    if(ady not in visitedAristas and ady.peso < distancias[ady.nodoDestino]):
+                        visitedAristas.add(ady)
+                        distancias[ady.nodoDestino] = ady.peso
+                        heapq.heappush(pq, (ady.peso, ady.nodoDestino, nodo))
+
+        
+        valueMST = round(valueMST, 3)
+        print(f"Valor del árbol de expansión mínima: {valueMST}")
+        
+        arbol.Guardar()
         return arbol

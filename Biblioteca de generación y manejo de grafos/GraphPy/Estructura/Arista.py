@@ -21,3 +21,12 @@ class Arista:
         # Implementa hash para que las aristas puedan ser utilizadas en sets o como claves de diccionario
         return hash((min(self.nodoOrigen, self.nodoDestino), max(self.nodoOrigen, self.nodoDestino)))
 
+    def __lt__(self, other):
+        # Comparar por peso
+        if isinstance(other, Arista):
+            return self.peso < other.peso
+        return NotImplemented
+
+    def __repr__(self):
+        # Representación útil para depuración
+        return f"Arista({self.nodoOrigen}, {self.nodoDestino}, peso={self.peso})"
