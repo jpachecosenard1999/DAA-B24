@@ -11,6 +11,7 @@ class Nodo:
         self.listaAdyacencia = []
         self.X = 0
         self.Y = 0
+        self.attr = {"X": 0, "Y": 0, "fuerza_x": 0, "fuerza_y": 0}
         if(geo == True):
             self.X = random.random()
             self.Y = random.random()

@@ -5,6 +5,10 @@ import graphviz
 import random
 import heapq
 import re
+import pygame
+import math
+import cv2
+import numpy as np
 
 class Grafo:
 
@@ -310,6 +314,15 @@ class Grafo:
                                         arista_inversa.nodoDestino == nodo):
                                         arista_inversa.peso = nuevo_peso
                                         break       
+    
+    def AsiganarValoresXY(self):
+        '''
+        Asigna de manera aleatoria los valores de X y Y para ser usados en el método SPRING
+        '''
+        for nodo in self.nodos:
+            if(isinstance(nodo, Nodo)):
+                nodo.attr["X"] = random.randint(100, 700)
+                nodo.attr["Y"] = random.randint(100, 500)
         
         
     def MostrarGrafo(self):
@@ -714,3 +727,154 @@ class Grafo:
         
         arbol.Guardar()
         return arbol
+    
+    # MÉTODOS PROYECTO 5
+    
+    def calcular_fuerzas(self, C1 = 0.0, C2 = 0.0):
+        '''
+        Calcula la fuerza x y fuerza y para el método Spring
+        :param C1: constante de atracción
+        :param C2: constante de repulsión
+        '''
+        # Resetear fuerzas
+        for nodo in self.nodos:
+            nodo.attr["fuerza_x"] = 0
+            nodo.attr["fuerza_y"] = 0
+        
+        # Cálculo de fuerzas de repulsión
+        for i, nodoOrigen in enumerate(self.nodos):
+            for j, nodoDestino in enumerate(self.nodos):
+                if i != j:
+                    dx = nodoOrigen.attr["X"] - nodoDestino.attr["Y"]
+                    dy = nodoOrigen.attr["Y"] - nodoDestino.attr["X"]
+                    dist = math.sqrt(dx ** 2 + dy ** 2) or 1
+                    fuerza = C2 / dist
+                    nodoOrigen.attr["fuerza_x"] += fuerza * dx / dist
+                    nodoOrigen.attr["fuerza_y"] += fuerza * dy / dist
+
+        # Cálculo de fuerzas de atracción
+        for arco in self.aristas:
+            dx = arco.nodoOrigen.attr["X"] - arco.nodoDestino.attr["X"]
+            dy = arco.nodoOrigen.attr["Y"] - arco.nodoDestino.attr["Y"]
+            dist = math.sqrt(dx ** 2 + dy ** 2) or 1
+            fuerza = -C1 * math.log(dist)
+            arco.nodoOrigen.attr["fuerza_x"] += fuerza * dx / dist
+            arco.nodoOrigen.attr["fuerza_y"] += fuerza * dy / dist
+            arco.nodoDestino.attr["fuerza_x"] -= fuerza * dx / dist
+            arco.nodoDestino.attr["fuerza_y"] -= fuerza * dy / dist
+
+    def actualizar_posiciones(self, ANCHO, ALTO, C3 = 0.0):
+        '''
+        Actualiza las posiciciones de los nodos del grafo
+        :param ANCHO: Configuración de la pantalla de pygame
+        :param ALTO: Configuración de la pantalla de pygame
+        :param C3: Coeficiente de movimiento
+        '''
+        for nodo in self.nodos:
+            nodo.attr["X"] += C3 * nodo.attr["fuerza_x"]
+            nodo.attr["Y"] += C3 * nodo.attr["fuerza_y"]
+            nodo.attr["X"] = max(20, min(ANCHO - 20, nodo.attr["X"]))
+            nodo.attr["Y"] = max(20, min(ALTO - 20, nodo.attr["Y"]))
+
+    def recentrar_grafo(self, ANCHO, ALTO):
+        '''
+        Método para mantener el grafo centrado en la pantalla
+        :param ANCHO: Configuración de la pantalla de pygame
+        :param ALTO: Configuración de la pantalla de pygame
+        '''
+        # Calcular el centroide
+        x_centro = sum(nodo.attr["X"] for nodo in self.nodos) / len(self.nodos)
+        y_centro = sum(nodo.attr["Y"] for nodo in self.nodos) / len(self.nodos)
+    
+        # Coordenadas del centro de la pantalla
+        centro_pantalla_x = ANCHO / 2
+        centro_pantalla_y = ALTO / 2
+
+        # Ajustar posiciones para centrar
+        for nodo in self.nodos:
+            nodo.attr["X"] += (centro_pantalla_x - x_centro)
+            nodo.attr["Y"] += (centro_pantalla_y - y_centro)
+
+    def limitar_a_margen(self, ANCHO, ALTO, margen=50):
+        '''
+        Método para obligar que el grafo no se pegue a los bordes de la pantalla
+        :param ANCHO: Configuración de la pantalla de pygame
+        :param ALTO: Configuración de la pantalla de pygame
+        :param margen: Margen de la pantalla de pygame
+        '''
+        for nodo in self.nodos:
+            nodo.attr["X"] = max(margen, min(ANCHO - margen, nodo.attr["X"]))
+            nodo.attr["Y"] = max(margen, min(ALTO - margen, nodo.attr["Y"]))
+
+    def agregar_fuerza_central(self, ANCHO, ALTO, fuerza_central=0.01):
+        '''
+        Agrega un coegiciente de fuerza central que obliga al grafo a mantenerse centrado
+        :param ANCHO: Configuración de la pantalla de pygame
+        :param ALTO: Configuración de la pantalla de pygame
+        :param fuerza_central: Constante para mantener el grafo centrado
+        '''
+        centro_x = ANCHO / 2
+        centro_y = ALTO / 2
+        for nodo in self.nodos:
+            dx = centro_x - nodo.attr["X"]
+            dy = centro_y - nodo.attr["Y"]
+            nodo.attr["fuerza_x"] += fuerza_central * dx
+            nodo.attr["fuerza_y"] += fuerza_central * dy
+
+    def dibujar(self, pantalla, BLANCO, NEGRO, AZUL):
+        '''
+        Dibuja el grafo en la patalla con pygame
+        :param pantalla: pantalla de pygame
+        :param BLANCO: Color a utilizar
+        :param NEGRO: Color a utilizar
+        :param AZUL: Color a utilizar
+        '''
+        pantalla.fill(BLANCO)
+        for arco in self.aristas:
+            pygame.draw.line(pantalla, NEGRO, (arco.nodoOrigen.attr["X"], arco.nodoOrigen.attr["Y"]),
+                             (arco.nodoDestino.attr["X"], arco.nodoDestino.attr["Y"]), 2)
+        for nodo in self.nodos:
+            pygame.draw.circle(pantalla, AZUL, (int(nodo.attr["X"]), int(nodo.attr["Y"])), 10)
+        pygame.display.flip()
+        
+    def SPRING(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, C1, C2, C3, ITERACIONES = 0):
+        '''
+        Algoritmo de P. Eades (1984) para distribuir los nodos de un grafo.
+        :param ANCHO: Configuración de la pantalla de pygame
+        :param ALTO: Configuración de la pantalla de pygame
+        :param BLANCO: Color a utilizar
+        :param NEGRO: Color a utilizar
+        :param AZUL: Color a utilizar
+        :param C1: constante de atracción
+        :param C2: constante de repulsión
+        :param C3: Coeficiente de movimiento
+        :param ITERACIONES: Número máximo de iteraciones
+        '''
+        pygame.init()
+        pantalla = pygame.display.set_mode((ANCHO, ALTO))
+        pygame.display.set_caption("Visualización de grafos - Método Spring")
+        reloj = pygame.time.Clock()
+        # Configuración para el video
+        FPS = 30
+        NOMBRE_VIDEO = self.nombre + ".mp4"
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video = cv2.VideoWriter(NOMBRE_VIDEO, fourcc, FPS, (ANCHO, ALTO))
+        
+        for _ in range(ITERACIONES):
+            self.calcular_fuerzas(C1, C2)
+            self.agregar_fuerza_central(ANCHO, ALTO, fuerza_central=0.02)
+            self.actualizar_posiciones(ANCHO, ALTO, C3)
+            self.recentrar_grafo(ANCHO, ALTO)
+            self.limitar_a_margen(ANCHO, ALTO)
+            self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
+            # Convertir superficie de Pygame a un fotograma compatible con OpenCV
+            frame = pygame.surfarray.array3d(pantalla)
+            frame = np.transpose(frame, (1, 0, 2))  # Cambiar dimensiones a (altura, ancho, canales)
+            video.write(frame)
+
+            reloj.tick(FPS)
+        
+        pygame.image.save(pantalla, self.nombre + ".png")
+        print("Captura guardada como: " + self.nombre + ".png")
+        video.release
+        pygame.quit()
