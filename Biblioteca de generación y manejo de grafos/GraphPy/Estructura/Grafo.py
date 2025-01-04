@@ -879,240 +879,159 @@ class Grafo:
         video.release
         pygame.quit()
         
-# MÉTODOS PROYECTO 6
+    # MÉTODOS PROYECTO 6
 
-def calcular_repulsion_BH(self, quad_tree, nodo, theta=0.5):
-    '''
-    Calcula la fuerza de repulsión usando el algoritmo Barnes-Hut
-    :param quad_tree: árbol cuádruple que contiene los nodos
-    :param nodo: nodo para el cual calcular las fuerzas
-    :param theta: parámetro de precisión (menor = más preciso)
-    '''
-    if not quad_tree.contiene_nodos:
-        return 0, 0
-    
-    dx = quad_tree.centro_masa_x - nodo.attr["X"]
-    dy = quad_tree.centro_masa_y - nodo.attr["Y"]
-    dist = math.sqrt(dx * dx + dy * dy)
-    
-    # Si el nodo está en el mismo punto, evitar división por cero
-    if dist < 0.0001:
-        return 0, 0
-    
-    # Si el cluster está lo suficientemente lejos, tratar como una sola masa
-    if quad_tree.ancho / dist < theta:
-        f = quad_tree.total_masa / (dist * dist)
-        return f * dx / dist, f * dy / dist
-    
-    # Si no, recursivamente calcular para cada cuadrante
-    fx = fy = 0
-    for hijo in quad_tree.hijos:
-        if hijo:
-            dfx, dfy = self.calcular_repulsion_BH(hijo, nodo, theta)
-            fx += dfx
-            fy += dfy
-    
-    return fx, fy
+    def calcular_repulsion_BH(self, quad_tree, nodo, theta=0.5):
+        '''
+        Calcula la fuerza de repulsión usando el algoritmo Barnes-Hut
+        :param quad_tree: árbol cuádruple que contiene los nodos
+        :param nodo: nodo para el cual calcular las fuerzas
+        :param theta: parámetro de precisión (menor = más preciso)
+        '''
+        if not quad_tree.contiene_nodos:
+            return 0, 0
+        
+        dx = quad_tree.centro_masa_x - nodo.attr["X"]
+        dy = quad_tree.centro_masa_y - nodo.attr["Y"]
+        dist = math.sqrt(dx * dx + dy * dy)
+        
+        # Si el nodo está en el mismo punto, evitar división por cero
+        if dist < 0.0001:
+            return 0, 0
+        
+        # Si el cluster está lo suficientemente lejos, tratar como una sola masa
+        if quad_tree.ancho / dist < theta:
+            f = quad_tree.total_masa / (dist * dist)
+            return f * dx / dist, f * dy / dist
+        
+        # Si no, recursivamente calcular para cada cuadrante
+        fx = fy = 0
+        for hijo in quad_tree.hijos:
+            if hijo:
+                dfx, dfy = self.calcular_repulsion_BH(hijo, nodo, theta)
+                fx += dfx
+                fy += dfy
+        
+        return fx, fy
 
-def QuadTree(self, x, y, ancho, altura, nodos):
-    '''
-    Implementación de árbol cuádruple para Barnes-Hut
-    :param x: coordenada x del cuadrante
-    :param y: coordenada y del cuadrante
-    :param ancho: ancho del cuadrante
-    :param altura: altura del cuadrante
-    :param nodos: lista de nodos en el cuadrante
-    '''
-    class Quad:
-        def __init__(self, x, y, ancho, altura):
-            self.x = x
-            self.y = y
-            self.ancho = ancho
-            self.altura = altura
-            self.hijos = [None] * 4
-            self.centro_masa_x = 0
-            self.centro_masa_y = 0
-            self.total_masa = 0
-            self.contiene_nodos = False
-    
-    quad = Quad(x, y, ancho, altura)
-    
-    if not nodos:
+    def QuadTree(self, x, y, ancho, altura, nodos):
+        '''
+        Implementación de árbol cuádruple para Barnes-Hut
+        :param x: coordenada x del cuadrante
+        :param y: coordenada y del cuadrante
+        :param ancho: ancho del cuadrante
+        :param altura: altura del cuadrante
+        :param nodos: lista de nodos en el cuadrante
+        '''
+        class Quad:
+            def __init__(self, x, y, ancho, altura):
+                self.x = x
+                self.y = y
+                self.ancho = ancho
+                self.altura = altura
+                self.hijos = [None] * 4
+                self.centro_masa_x = 0
+                self.centro_masa_y = 0
+                self.total_masa = 0
+                self.contiene_nodos = False
+        
+        quad = Quad(x, y, ancho, altura)
+        
+        if not nodos:
+            return quad
+        
+        if len(nodos) == 1:
+            quad.centro_masa_x = nodos[0].attr["X"]
+            quad.centro_masa_y = nodos[0].attr["Y"]
+            quad.total_masa = 1
+            quad.contiene_nodos = True
+            return quad
+        
+        # Dividir nodos en cuadrantes
+        mid_x = x + ancho/2
+        mid_y = y + altura/2
+        cuadrantes = [[] for _ in range(4)]
+        
+        for nodo in nodos:
+            idx = (int(nodo.attr["X"] > mid_x) << 1) | int(nodo.attr["Y"] > mid_y)
+            cuadrantes[idx].append(nodo)
+        
+        # Recursivamente construir para cada cuadrante
+        quad.hijos[0] = self.QuadTree(x, y, ancho/2, altura/2, cuadrantes[0])
+        quad.hijos[1] = self.QuadTree(x, y + altura/2, ancho/2, altura/2, cuadrantes[1])
+        quad.hijos[2] = self.QuadTree(x + ancho/2, y, ancho/2, altura/2, cuadrantes[2])
+        quad.hijos[3] = self.QuadTree(x + ancho/2, y + altura/2, ancho/2, altura/2, cuadrantes[3])
+        
+        # Calcular centro de masa
+        total_x = total_y = total_masa = 0
+        for hijo in quad.hijos:
+            if hijo and hijo.contiene_nodos:
+                total_x += hijo.centro_masa_x * hijo.total_masa
+                total_y += hijo.centro_masa_y * hijo.total_masa
+                total_masa += hijo.total_masa
+        
+        if total_masa > 0:
+            quad.centro_masa_x = total_x / total_masa
+            quad.centro_masa_y = total_y / total_masa
+            quad.total_masa = total_masa
+            quad.contiene_nodos = True
+        
         return quad
-    
-    if len(nodos) == 1:
-        quad.centro_masa_x = nodos[0].attr["X"]
-        quad.centro_masa_y = nodos[0].attr["Y"]
-        quad.total_masa = 1
-        quad.contiene_nodos = True
-        return quad
-    
-    # Dividir nodos en cuadrantes
-    mid_x = x + ancho/2
-    mid_y = y + altura/2
-    cuadrantes = [[] for _ in range(4)]
-    
-    for nodo in nodos:
-        idx = (int(nodo.attr["X"] > mid_x) << 1) | int(nodo.attr["Y"] > mid_y)
-        cuadrantes[idx].append(nodo)
-    
-    # Recursivamente construir para cada cuadrante
-    quad.hijos[0] = self.QuadTree(x, y, ancho/2, altura/2, cuadrantes[0])
-    quad.hijos[1] = self.QuadTree(x, y + altura/2, ancho/2, altura/2, cuadrantes[1])
-    quad.hijos[2] = self.QuadTree(x + ancho/2, y, ancho/2, altura/2, cuadrantes[2])
-    quad.hijos[3] = self.QuadTree(x + ancho/2, y + altura/2, ancho/2, altura/2, cuadrantes[3])
-    
-    # Calcular centro de masa
-    total_x = total_y = total_masa = 0
-    for hijo in quad.hijos:
-        if hijo and hijo.contiene_nodos:
-            total_x += hijo.centro_masa_x * hijo.total_masa
-            total_y += hijo.centro_masa_y * hijo.total_masa
-            total_masa += hijo.total_masa
-    
-    if total_masa > 0:
-        quad.centro_masa_x = total_x / total_masa
-        quad.centro_masa_y = total_y / total_masa
-        quad.total_masa = total_masa
-        quad.contiene_nodos = True
-    
-    return quad
 
-def FruchtermanReingold(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, k=None, temp=1.0):
-    '''
-    Implementa el algoritmo de Fruchterman-Reingold para disposición de grafos
-    :param ANCHO: Ancho de la ventana
-    :param ALTO: Alto de la ventana
-    :param BLANCO: Color de fondo
-    :param NEGRO: Color de aristas
-    :param AZUL: Color de nodos
-    :param iteraciones: Número de iteraciones
-    :param k: Distancia óptima entre nodos
-    :param temp: Temperatura inicial para enfriamiento simulado
-    '''
-    pygame.init()
-    pantalla = pygame.display.set_mode((ANCHO, ALTO))
-    pygame.display.set_caption("Visualización de grafos - Fruchterman-Reingold")
-    
-    # Configuración para el video
-    FPS = 30
-    NOMBRE_VIDEO = self.nombre + "_FR.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    video = cv2.VideoWriter(NOMBRE_VIDEO, fourcc, FPS, (ANCHO, ALTO))
-    
-    # Inicializar posiciones si no están definidas
-    self.AsiganarValoresXY()
-    
-    # Calcular k si no se proporciona
-    if k is None:
-        area = ANCHO * ALTO
-        k = math.sqrt(area / len(self.nodos))
-    
-    for i in range(iteraciones):
-        # Inicializar fuerzas
-        fuerzas = {nodo: [0, 0] for nodo in self.nodos}
+    def FruchtermanReingold(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, k=None, temp=1.0):
+        '''
+        Implementa el algoritmo de Fruchterman-Reingold para disposición de grafos
+        :param ANCHO: Ancho de la ventana
+        :param ALTO: Alto de la ventana
+        :param BLANCO: Color de fondo
+        :param NEGRO: Color de aristas
+        :param AZUL: Color de nodos
+        :param iteraciones: Número de iteraciones
+        :param k: Distancia óptima entre nodos
+        :param temp: Temperatura inicial para enfriamiento simulado
+        '''
+        pygame.init()
+        pantalla = pygame.display.set_mode((ANCHO, ALTO))
+        pygame.display.set_caption("Visualización de grafos - Fruchterman-Reingold")
         
-        # Calcular fuerzas repulsivas
-        for v in self.nodos:
-            for u in self.nodos:
-                if v != u:
-                    dx = v.attr["X"] - u.attr["X"]
-                    dy = v.attr["Y"] - u.attr["Y"]
-                    dist = math.sqrt(dx * dx + dy * dy)
-                    if dist < 0.01: dist = 0.01
-                    
-                    # Fuerza repulsiva
-                    f = k * k / dist
-                    fx = f * dx / dist
-                    fy = f * dy / dist
-                    
-                    fuerzas[v][0] += fx
-                    fuerzas[v][1] += fy
+        # Configuración para el video
+        FPS = 30
+        NOMBRE_VIDEO = self.nombre + "_FR.mp4"
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video = cv2.VideoWriter(NOMBRE_VIDEO, fourcc, FPS, (ANCHO, ALTO))
         
-        # Calcular fuerzas atractivas
-        for arista in self.aristas:
-            v = arista.nodoOrigen
-            u = arista.nodoDestino
-            dx = v.attr["X"] - u.attr["X"]
-            dy = v.attr["Y"] - u.attr["Y"]
-            dist = math.sqrt(dx * dx + dy * dy)
-            if dist < 0.01: dist = 0.01
+        # Inicializar posiciones si no están definidas
+        self.AsiganarValoresXY()
+        
+        # Calcular k si no se proporciona
+        if k is None:
+            area = ANCHO * ALTO
+            k = math.sqrt(area / len(self.nodos))
+        
+        for i in range(iteraciones):
+            # Inicializar fuerzas
+            fuerzas = {nodo: [0, 0] for nodo in self.nodos}
             
-            # Fuerza atractiva
-            f = dist * dist / k
-            fx = f * dx / dist
-            fy = f * dy / dist
+            # Calcular fuerzas repulsivas
+            for v in self.nodos:
+                for u in self.nodos:
+                    if v != u:
+                        dx = v.attr["X"] - u.attr["X"]
+                        dy = v.attr["Y"] - u.attr["Y"]
+                        dist = math.sqrt(dx * dx + dy * dy)
+                        if dist < 0.01: dist = 0.01
+                        
+                        # Fuerza repulsiva
+                        f = k * k / dist
+                        fx = f * dx / dist
+                        fy = f * dy / dist
+                        
+                        fuerzas[v][0] += fx
+                        fuerzas[v][1] += fy
             
-            fuerzas[v][0] -= fx
-            fuerzas[v][1] -= fy
-            fuerzas[u][0] += fx
-            fuerzas[u][1] += fy
-        
-        # Aplicar fuerzas con límite de temperatura
-        t = temp * (1 - i/iteraciones)
-        for v in self.nodos:
-            fx = min(max(fuerzas[v][0], -t), t)
-            fy = min(max(fuerzas[v][1], -t), t)
-            v.attr["X"] += fx
-            v.attr["Y"] += fy
-            
-            # Mantener dentro de los límites
-            v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
-            v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
-        
-        # Dibujar el estado actual
-        self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
-        
-        # Guardar frame
-        frame = pygame.surfarray.array3d(pantalla)
-        frame = np.transpose(frame, (1, 0, 2))
-        video.write(frame)
-    
-    pygame.image.save(pantalla, self.nombre + "_FR.png")
-    print(f"Visualización Fruchterman-Reingold guardada como: {self.nombre}_FR.png")
-    video.release()
-    pygame.quit()
-
-def BarnesHut(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, theta=0.5, temp=1.0):
-    '''
-    Implementa el algoritmo Barnes-Hut para disposición de grafos
-    :param ANCHO: Ancho de la ventana
-    :param ALTO: Alto de la ventana
-    :param BLANCO: Color de fondo
-    :param NEGRO: Color de aristas
-    :param AZUL: Color de nodos
-    :param iteraciones: Número de iteraciones
-    :param theta: Parámetro de precisión Barnes-Hut
-    :param temp: Temperatura inicial para enfriamiento simulado
-    '''
-    pygame.init()
-    pantalla = pygame.display.set_mode((ANCHO, ALTO))
-    pygame.display.set_caption("Visualización de grafos - Barnes-Hut")
-    
-    # Configuración para el video
-    FPS = 30
-    NOMBRE_VIDEO = self.nombre + "_BH.mp4"
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    video = cv2.VideoWriter(NOMBRE_VIDEO, fourcc, FPS, (ANCHO, ALTO))
-    
-    # Inicializar posiciones si no están definidas
-    self.AsiganarValoresXY()
-    
-    for i in range(iteraciones):
-        # Construir QuadTree
-        quad_tree = self.QuadTree(0, 0, ANCHO, ALTO, self.nodos)
-        
-        # Calcular fuerzas para cada nodo
-        fuerzas = {nodo: [0, 0] for nodo in self.nodos}
-        
-        for v in self.nodos:
-            # Calcular fuerzas repulsivas usando Barnes-Hut
-            fx, fy = self.calcular_repulsion_BH(quad_tree, v, theta)
-            fuerzas[v][0] += fx
-            fuerzas[v][1] += fy
-            
-            # Calcular fuerzas atractivas (solo para nodos conectados)
-            for arista in v.listaAdyacencia:
+            # Calcular fuerzas atractivas
+            for arista in self.aristas:
+                v = arista.nodoOrigen
                 u = arista.nodoDestino
                 dx = v.attr["X"] - u.attr["X"]
                 dy = v.attr["Y"] - u.attr["Y"]
@@ -1120,34 +1039,115 @@ def BarnesHut(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, theta=0.5,
                 if dist < 0.01: dist = 0.01
                 
                 # Fuerza atractiva
-                f = dist / 100  # Factor de atracción
+                f = dist * dist / k
                 fx = f * dx / dist
                 fy = f * dy / dist
                 
                 fuerzas[v][0] -= fx
                 fuerzas[v][1] -= fy
-        
-        # Aplicar fuerzas con límite de temperatura
-        t = temp * (1 - i/iteraciones)
-        for v in self.nodos:
-            fx = min(max(fuerzas[v][0], -t), t)
-            fy = min(max(fuerzas[v][1], -t), t)
-            v.attr["X"] += fx
-            v.attr["Y"] += fy
+                fuerzas[u][0] += fx
+                fuerzas[u][1] += fy
             
-            # Mantener dentro de los límites
-            v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
-            v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
+            # Aplicar fuerzas con límite de temperatura
+            t = temp * (1 - i/iteraciones)
+            for v in self.nodos:
+                fx = min(max(fuerzas[v][0], -t), t)
+                fy = min(max(fuerzas[v][1], -t), t)
+                v.attr["X"] += fx
+                v.attr["Y"] += fy
+                
+                # Mantener dentro de los límites
+                v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
+                v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
+            
+            # Dibujar el estado actual
+            self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
+            
+            # Guardar frame
+            frame = pygame.surfarray.array3d(pantalla)
+            frame = np.transpose(frame, (1, 0, 2))
+            video.write(frame)
         
-        # Dibujar el estado actual
-        self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
+        pygame.image.save(pantalla, self.nombre + "_FR.png")
+        print(f"Visualización Fruchterman-Reingold guardada como: {self.nombre}_FR.png")
+        video.release()
+        pygame.quit()
+
+    def BarnesHut(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, theta=0.5, temp=1.0):
+        '''
+        Implementa el algoritmo Barnes-Hut para disposición de grafos
+        :param ANCHO: Ancho de la ventana
+        :param ALTO: Alto de la ventana
+        :param BLANCO: Color de fondo
+        :param NEGRO: Color de aristas
+        :param AZUL: Color de nodos
+        :param iteraciones: Número de iteraciones
+        :param theta: Parámetro de precisión Barnes-Hut
+        :param temp: Temperatura inicial para enfriamiento simulado
+        '''
+        pygame.init()
+        pantalla = pygame.display.set_mode((ANCHO, ALTO))
+        pygame.display.set_caption("Visualización de grafos - Barnes-Hut")
         
-        # Guardar frame
-        frame = pygame.surfarray.array3d(pantalla)
-        frame = np.transpose(frame, (1, 0, 2))
-        video.write(frame)
-    
-    pygame.image.save(pantalla, self.nombre + "_BH.png")
-    print(f"Visualización Barnes-Hut guardada como: {self.nombre}_BH.png")
-    video.release()
-    pygame.quit()
+        # Configuración para el video
+        FPS = 30
+        NOMBRE_VIDEO = self.nombre + "_BH.mp4"
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video = cv2.VideoWriter(NOMBRE_VIDEO, fourcc, FPS, (ANCHO, ALTO))
+        
+        # Inicializar posiciones si no están definidas
+        self.AsiganarValoresXY()
+        
+        for i in range(iteraciones):
+            # Construir QuadTree
+            quad_tree = self.QuadTree(0, 0, ANCHO, ALTO, self.nodos)
+            
+            # Calcular fuerzas para cada nodo
+            fuerzas = {nodo: [0, 0] for nodo in self.nodos}
+            
+            for v in self.nodos:
+                # Calcular fuerzas repulsivas usando Barnes-Hut
+                fx, fy = self.calcular_repulsion_BH(quad_tree, v, theta)
+                fuerzas[v][0] += fx
+                fuerzas[v][1] += fy
+                
+                # Calcular fuerzas atractivas (solo para nodos conectados)
+                for arista in v.listaAdyacencia:
+                    u = arista.nodoDestino
+                    dx = v.attr["X"] - u.attr["X"]
+                    dy = v.attr["Y"] - u.attr["Y"]
+                    dist = math.sqrt(dx * dx + dy * dy)
+                    if dist < 0.01: dist = 0.01
+                    
+                    # Fuerza atractiva
+                    f = dist / 100  # Factor de atracción
+                    fx = f * dx / dist
+                    fy = f * dy / dist
+                    
+                    fuerzas[v][0] -= fx
+                    fuerzas[v][1] -= fy
+            
+            # Aplicar fuerzas con límite de temperatura
+            t = temp * (1 - i/iteraciones)
+            for v in self.nodos:
+                fx = min(max(fuerzas[v][0], -t), t)
+                fy = min(max(fuerzas[v][1], -t), t)
+                v.attr["X"] += fx
+                v.attr["Y"] += fy
+                
+                # Mantener dentro de los límites
+                v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
+                v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
+            
+            # Dibujar el estado actual
+            self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
+            
+            # Guardar frame
+            frame = pygame.surfarray.array3d(pantalla)
+            frame = np.transpose(frame, (1, 0, 2))
+            video.write(frame)
+        
+        pygame.image.save(pantalla, self.nombre + "_BH.png")
+        print(f"Visualización Barnes-Hut guardada como: {self.nombre}_BH.png")
+        video.release()
+        pygame.quit()
