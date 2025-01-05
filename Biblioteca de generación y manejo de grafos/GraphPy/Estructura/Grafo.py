@@ -880,6 +880,39 @@ class Grafo:
         pygame.quit()
         
     # MÉTODOS PROYECTO 6
+    
+    def centrar_grafo(self, nodos, ANCHO, ALTO):
+        """
+        Centra el grafo en la pantalla ajustando las posiciones de todos los nodos
+        """
+        # Calcular el centro actual del grafo
+        centro_x = sum(nodo.attr["X"] for nodo in nodos) / len(nodos)
+        centro_y = sum(nodo.attr["Y"] for nodo in nodos) / len(nodos)
+        
+        # Calcular el desplazamiento necesario
+        dx = ANCHO/2 - centro_x
+        dy = ALTO/2 - centro_y
+        
+        # Ajustar las posiciones
+        for nodo in nodos:
+            nodo.attr["X"] += dx
+            nodo.attr["Y"] += dy
+
+    def fuerza_central(self,x, y, ANCHO, ALTO, factor=0.1):
+        """
+        Calcula una fuerza que atrae los nodos hacia el centro
+        """
+        centro_x = ANCHO/2
+        centro_y = ALTO/2
+        dx = centro_x - x
+        dy = centro_y - y
+        dist = math.sqrt(dx*dx + dy*dy)
+        if dist < 0.01:
+            return 0, 0
+        
+        # La fuerza aumenta con la distancia al centro
+        f = factor * math.log(dist + 1)
+        return f * dx / dist, f * dy / dist
 
     def calcular_repulsion_BH(self, quad_tree, nodo, theta=0.5):
         '''
@@ -895,16 +928,22 @@ class Grafo:
         dy = quad_tree.centro_masa_y - nodo.attr["Y"]
         dist = math.sqrt(dx * dx + dy * dy)
         
-        # Si el nodo está en el mismo punto, evitar división por cero
-        if dist < 0.0001:
+        # Distancia mínima más pequeña para evitar fuerzas excesivas
+        MIN_DIST = 20
+        if dist < MIN_DIST:
+            f = 500 * (MIN_DIST - dist) / MIN_DIST
+            return -f * dx / (dist + 0.1), -f * dy / (dist + 0.1)
+        
+        # Si el nodo está solo en este cuadrante, no hay repulsión
+        if len(quad_tree.nodos) == 1 and quad_tree.nodos[0] == nodo:
             return 0, 0
         
-        # Si el cluster está lo suficientemente lejos, tratar como una sola masa
+        k = 5  # Factor de repulsión base
+        
         if quad_tree.ancho / dist < theta:
-            f = quad_tree.total_masa / (dist * dist)
+            f = k / (dist + 0.1)
             return f * dx / dist, f * dy / dist
         
-        # Si no, recursivamente calcular para cada cuadrante
         fx = fy = 0
         for hijo in quad_tree.hijos:
             if hijo:
@@ -914,15 +953,19 @@ class Grafo:
         
         return fx, fy
 
-    def QuadTree(self, x, y, ancho, altura, nodos):
+    def QuadTree(self, x, y, ancho, altura, nodos, profundidad=0):
         '''
-        Implementación de árbol cuádruple para Barnes-Hut
+        Implementación de árbol cuádruple para Barnes-Hut con límite de profundidad
         :param x: coordenada x del cuadrante
         :param y: coordenada y del cuadrante
         :param ancho: ancho del cuadrante
         :param altura: altura del cuadrante
         :param nodos: lista de nodos en el cuadrante
+        :param profundidad: profundidad actual del árbol
         '''
+        MAX_PROFUNDIDAD = 8  # Límite de profundidad
+        MIN_TAMANO = 1.0    # Tamaño mínimo de cuadrante
+        
         class Quad:
             def __init__(self, x, y, ancho, altura):
                 self.x = x
@@ -934,10 +977,12 @@ class Grafo:
                 self.centro_masa_y = 0
                 self.total_masa = 0
                 self.contiene_nodos = False
+                self.nodos = []  # Lista de nodos en este cuadrante
         
         quad = Quad(x, y, ancho, altura)
         
-        if not nodos:
+        # Condiciones de parada
+        if not nodos or profundidad >= MAX_PROFUNDIDAD or ancho < MIN_TAMANO or altura < MIN_TAMANO:
             return quad
         
         if len(nodos) == 1:
@@ -945,6 +990,7 @@ class Grafo:
             quad.centro_masa_y = nodos[0].attr["Y"]
             quad.total_masa = 1
             quad.contiene_nodos = True
+            quad.nodos = nodos
             return quad
         
         # Dividir nodos en cuadrantes
@@ -953,14 +999,19 @@ class Grafo:
         cuadrantes = [[] for _ in range(4)]
         
         for nodo in nodos:
-            idx = (int(nodo.attr["X"] > mid_x) << 1) | int(nodo.attr["Y"] > mid_y)
+            # Asegurarse de que las coordenadas están dentro de los límites
+            nx = max(x, min(x + ancho - 0.1, nodo.attr["X"]))
+            ny = max(y, min(y + altura - 0.1, nodo.attr["Y"]))
+            
+            idx = (int(nx > mid_x) << 1) | int(ny > mid_y)
             cuadrantes[idx].append(nodo)
         
         # Recursivamente construir para cada cuadrante
-        quad.hijos[0] = self.QuadTree(x, y, ancho/2, altura/2, cuadrantes[0])
-        quad.hijos[1] = self.QuadTree(x, y + altura/2, ancho/2, altura/2, cuadrantes[1])
-        quad.hijos[2] = self.QuadTree(x + ancho/2, y, ancho/2, altura/2, cuadrantes[2])
-        quad.hijos[3] = self.QuadTree(x + ancho/2, y + altura/2, ancho/2, altura/2, cuadrantes[3])
+        for i in range(4):
+            nuevo_x = x + (i >> 1) * (ancho/2)
+            nuevo_y = y + (i & 1) * (altura/2)
+            quad.hijos[i] = self.QuadTree(nuevo_x, nuevo_y, ancho/2, altura/2, 
+                                        cuadrantes[i], profundidad + 1)
         
         # Calcular centro de masa
         total_x = total_y = total_masa = 0
@@ -975,10 +1026,11 @@ class Grafo:
             quad.centro_masa_y = total_y / total_masa
             quad.total_masa = total_masa
             quad.contiene_nodos = True
+            quad.nodos = nodos
         
         return quad
 
-    def FruchtermanReingold(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, k=None, temp=1.0):
+    def FruchtermanReingold(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=500, k=None, temp=1.0):
         '''
         Implementa el algoritmo de Fruchterman-Reingold para disposición de grafos
         :param ANCHO: Ancho de la ventana
@@ -1011,9 +1063,14 @@ class Grafo:
         for i in range(iteraciones):
             # Inicializar fuerzas
             fuerzas = {nodo: [0, 0] for nodo in self.nodos}
-            
+        
             # Calcular fuerzas repulsivas
             for v in self.nodos:
+                # Añadir fuerza central
+                fx_central, fy_central = self.fuerza_central(v.attr["X"], v.attr["Y"], ANCHO, ALTO)
+                fuerzas[v][0] += fx_central
+                fuerzas[v][1] += fy_central
+            
                 for u in self.nodos:
                     if v != u:
                         dx = v.attr["X"] - u.attr["X"]
@@ -1056,9 +1113,14 @@ class Grafo:
                 v.attr["X"] += fx
                 v.attr["Y"] += fy
                 
-                # Mantener dentro de los límites
-                v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
-                v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
+                # Mantener dentro de los límites con un margen más amplio
+                margen = min(ANCHO, ALTO) * 0.1
+                v.attr["X"] = min(ANCHO-margen, max(margen, v.attr["X"]))
+                v.attr["Y"] = min(ALTO-margen, max(margen, v.attr["Y"]))
+        
+            # Centrar el grafo cada 5 iteraciones
+            if i % 5 == 0:
+                self.centrar_grafo(self.nodos, ANCHO, ALTO)
             
             # Dibujar el estado actual
             self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
@@ -1073,7 +1135,7 @@ class Grafo:
         video.release()
         pygame.quit()
 
-    def BarnesHut(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=50, theta=0.5, temp=1.0):
+    def BarnesHut(self, ANCHO, ALTO, BLANCO, NEGRO, AZUL, iteraciones=500, theta=0.5, temp=1.0):
         '''
         Implementa el algoritmo Barnes-Hut para disposición de grafos
         :param ANCHO: Ancho de la ventana
@@ -1097,12 +1159,11 @@ class Grafo:
         
         # Inicializar posiciones si no están definidas
         self.AsiganarValoresXY()
+
+        factor_atraccion = 0.1
         
         for i in range(iteraciones):
-            # Construir QuadTree
             quad_tree = self.QuadTree(0, 0, ANCHO, ALTO, self.nodos)
-            
-            # Calcular fuerzas para cada nodo
             fuerzas = {nodo: [0, 0] for nodo in self.nodos}
             
             for v in self.nodos:
@@ -1111,33 +1172,51 @@ class Grafo:
                 fuerzas[v][0] += fx
                 fuerzas[v][1] += fy
                 
-                # Calcular fuerzas atractivas (solo para nodos conectados)
+                # Fuerza de expansión adicional basada en la distancia al centro
+                cx, cy = ANCHO/2, ALTO/2
+                dx = v.attr["X"] - cx
+                dy = v.attr["Y"] - cy
+                dist = math.sqrt(dx*dx + dy*dy)
+                if dist < 100:  # Si está muy cerca del centro
+                    expansion = 50/max(dist, 1)  # Fuerza de expansión
+                    fuerzas[v][0] += expansion * dx/max(dist, 1)
+                    fuerzas[v][1] += expansion * dy/max(dist, 1)
+                
+                # Calcular fuerzas atractivas solo si hay conexión
                 for arista in v.listaAdyacencia:
                     u = arista.nodoDestino
                     dx = v.attr["X"] - u.attr["X"]
                     dy = v.attr["Y"] - u.attr["Y"]
                     dist = math.sqrt(dx * dx + dy * dy)
-                    if dist < 0.01: dist = 0.01
+                    if dist < 0.1: dist = 0.1
                     
-                    # Fuerza atractiva
-                    f = dist / 100  # Factor de atracción
+                    # Fuerza atractiva muy débil y con límite de distancia máxima
+                    if dist > 200:  # No atraer si están muy lejos
+                        f = 0
+                    else:
+                        f = factor_atraccion * (dist / 200)
                     fx = f * dx / dist
                     fy = f * dy / dist
                     
                     fuerzas[v][0] -= fx
                     fuerzas[v][1] -= fy
             
-            # Aplicar fuerzas con límite de temperatura
-            t = temp * (1 - i/iteraciones)
+            # Aplicar fuerzas con límite de temperatura más alto
+            t = temp * (1 - i/iteraciones) * 3  # Aumentar aún más el rango de movimiento
             for v in self.nodos:
                 fx = min(max(fuerzas[v][0], -t), t)
                 fy = min(max(fuerzas[v][1], -t), t)
                 v.attr["X"] += fx
                 v.attr["Y"] += fy
                 
-                # Mantener dentro de los límites
-                v.attr["X"] = min(ANCHO-10, max(10, v.attr["X"]))
-                v.attr["Y"] = min(ALTO-10, max(10, v.attr["Y"]))
+                # Mantener dentro de los límites con margen más amplio
+                margen = min(ANCHO, ALTO) * 0.25  # Aumentar el margen al 25%
+                v.attr["X"] = min(ANCHO-margen, max(margen, v.attr["X"]))
+                v.attr["Y"] = min(ALTO-margen, max(margen, v.attr["Y"]))
+            
+            # Centrar el grafo con menos frecuencia
+            if i % 15 == 0:
+                self.centrar_grafo(self.nodos, ANCHO, ALTO)
             
             # Dibujar el estado actual
             self.dibujar(pantalla, BLANCO, NEGRO, AZUL)
